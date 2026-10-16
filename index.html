@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f3">
+  <meta name="description" content="簡單、隱私優先的線上鏡頭擷取器。開啟鏡頭、預覽畫面並下載照片。">
+  <title>鏡頭擷取器 — 把此刻收藏起來</title>
+  <style>
+    :root { color-scheme: light; --ink:#182b29; --muted:#71817c; --line:#e3e9e5; --green:#197765; --mint:#e5f2ec; --paper:#f5f6f3; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif; }
+    button,select { font:inherit; }
+    .shell { width:min(1120px,calc(100% - 48px)); margin:auto; }
+    header { height:86px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:11px; font-size:15px; font-weight:700; letter-spacing:.04em; }
+    .brand-icon { width:36px;height:36px;border-radius:12px;background:var(--green);display:grid;place-items:center;color:white; }
+    .brand-icon svg { width:20px;height:20px; }
+    .privacy { color:var(--muted); font-size:13px; display:flex;align-items:center;gap:8px; }
+    .privacy svg { width:16px;height:16px;color:var(--green); }
+    main { padding:58px 0 70px; }
+    .intro { text-align:center; margin-bottom:34px; }
+    .eyebrow { color:var(--green);font-size:12px;font-weight:750;letter-spacing:.18em;text-transform:uppercase; }
+    h1 { font-size:clamp(30px,4vw,46px);letter-spacing:-.045em;margin:12px 0 10px;line-height:1.15; }
+    .intro p { color:var(--muted);margin:0;font-size:15px; }
+    .studio { background:white; border:1px solid var(--line); border-radius:22px; padding:18px; box-shadow:0 18px 55px #173b2810; }
+    .preview { position:relative; overflow:hidden; aspect-ratio:16/9; min-height:240px; max-height:590px; border-radius:13px; background:#16221f; display:grid;place-items:center; }
+    video { width:100%;height:100%;object-fit:cover; display:none; }
+    .placeholder { color:#d6e1dc; display:flex; flex-direction:column;align-items:center;text-align:center;gap:13px;padding:25px; }
+    .placeholder .camera-glyph { width:60px;height:60px;border:1px solid #ffffff30;border-radius:20px;display:grid;place-items:center;background:#ffffff0c; }
+    .camera-glyph svg { width:28px;height:28px; }
+    .placeholder strong { font-size:16px;font-weight:600; }
+    .placeholder span { color:#99aaa3;font-size:13px; }
+    .live-badge { display:none;position:absolute;top:16px;left:16px;padding:7px 10px;border-radius:99px;background:#13231dcc;color:white;font-size:11px;letter-spacing:.08em;align-items:center;gap:7px; }
+    .live-badge::before { content:"";width:7px;height:7px;background:#76d9ab;border-radius:50%; }
+    .studio-bar { min-height:77px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 4px 0; }
+    .status { display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted); }
+    .status-dot { width:8px;height:8px;border-radius:50%;background:#aab6b1; }
+    .status.active { color:var(--green); }.status.active .status-dot { background:#36a77f;box-shadow:0 0 0 4px #36a77f1c; }
+    .controls { display:flex;align-items:center;gap:12px; }
+    .camera-select { border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 30px 10px 12px;font-size:13px;max-width:180px; }
+    .capture { border:0;border-radius:10px;padding:11px 17px;background:var(--green);color:white;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .2s,transform .2s; }
+    .capture:hover:not(:disabled) { background:#125f51;transform:translateY(-1px); }
+    button:disabled, select:disabled { opacity:.45;cursor:not-allowed; }
+    .capture svg { width:17px;height:17px; }
+    .power { display:flex;align-items:center;gap:10px;padding-left:13px;border-left:1px solid var(--line);font-size:13px;font-weight:650;white-space:nowrap; }
+    .switch { width:46px;height:26px;position:relative;display:inline-block; }
+    .switch input { position:absolute;opacity:0;width:1px;height:1px; }
+    .track { position:absolute;inset:0;border-radius:20px;background:#c8d1cc;cursor:pointer;transition:.2s; }
+    .track::after { content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:.2s; }
+    .switch input:checked + .track { background:var(--green); }
+    .switch input:checked + .track::after { transform:translateX(20px); }
+    .switch input:focus-visible + .track { outline:3px solid #19776555;outline-offset:3px; }
+    .below { display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px; }
+    .info-card { border:1px solid var(--line);border-radius:16px;padding:19px 21px;background:#ffffffa8; }
+    .info-title { display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;margin-bottom:7px; }
+    .info-title svg { width:17px;height:17px;color:var(--green); }
+    .info-card p { font-size:12px;line-height:1.7;color:var(--muted);margin:0; }
+    .toast { position:fixed;left:50%;bottom:25px;transform:translate(-50%,12px);padding:11px 17px;background:#182b29;color:white;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.22s;box-shadow:0 8px 24px #0002;max-width:calc(100% - 32px);text-align:center;z-index:3; }
+    .toast.show { opacity:1;transform:translate(-50%,0); }
+    footer { padding:22px 0 30px;text-align:center;color:#94a09b;font-size:11px; }
+    @media (max-width:650px) {
+      .shell { width:calc(100% - 30px); } header { height:70px; }.privacy span { display:none; }
+      main { padding:40px 0 45px; }.intro { margin-bottom:25px; }.intro p { font-size:13px; }
+      .studio { padding:10px;border-radius:17px; }.preview { aspect-ratio:4/3;min-height:230px; }
+      .studio-bar { align-items:flex-start;flex-direction:column;padding:15px 5px 5px;gap:14px; }
+      .controls { width:100%;gap:8px; }.camera-select { flex:1;min-width:0;max-width:none;padding:10px 8px; }
+      .capture { padding:11px 12px; }.power { margin-left:auto;padding-left:10px;gap:7px; }
+      .below { grid-template-columns:1fr;gap:10px;margin-top:13px; }.info-card { padding:15px 16px; }
+    }
+    @media (max-width:390px) { .camera-select { font-size:12px; }.power { font-size:12px; }.capture { font-size:12px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h2l1.2-1.5h4.6L15.5 6h2A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></div>鏡頭擷取器</div>
+      <div class="privacy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.7 3 8.4 7 10 4-1.6 7-5.3 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg><span>影像只在你的裝置上處理</span></div>
+    </header>
+    <main>
+      <section class="intro"><div class="eyebrow">A MOMENT, PRESERVED</div><h1>把此刻，收藏起來。</h1><p>開啟鏡頭，輕鬆拍下屬於你的畫面。</p></section>
+      <section class="studio" aria-label="鏡頭擷取工作區">
+        <div class="preview">
+          <video id="video" autoplay playsinline muted aria-label="鏡頭即時預覽"></video>
+          <div class="placeholder" id="placeholder"><div class="camera-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 8.5A2.5 2.5 0 0 1 6 6h2l1.5-2h5L16 6h2a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></div><strong id="placeholderTitle">準備好拍下這一刻了嗎？</strong><span id="placeholderHint">開啟右側鏡頭開關，開始預覽</span></div>
+          <div class="live-badge" id="liveBadge">LIVE</div>
+        </div>
+        <div class="studio-bar">
+          <div class="status" id="status"><span class="status-dot"></span><span id="statusText">鏡頭目前關閉</span></div>
+          <div class="controls">
+            <select class="camera-select" id="cameraSelect" aria-label="選擇鏡頭" disabled><option value="">預設鏡頭</option></select>
+            <button class="capture" id="captureButton" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h2l1.2-1.5h4.6L15.5 6h2A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg>拍攝照片</button>
+            <div class="power"><span>鏡頭</span><label class="switch"><input id="cameraToggle" type="checkbox" role="switch" aria-label="開啟或關閉鏡頭"><span class="track"></span></label></div>
+          </div>
+        </div>
+      </section>
+      <section class="below" aria-label="使用說明">
+        <article class="info-card"><div class="info-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.7 3 8.4 7 10 4-1.6 7-5.3 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>你的影像，由你掌握</div><p>畫面只在瀏覽器中處理，不會上傳或儲存至任何伺服器。</p></article>
+        <article class="info-card"><div class="info-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="3.5"/><path d="M8 4 9 2h6l1 2"/></svg>一鍵拍攝，立即下載</div><p>拍攝後照片會以 PNG 格式下載到你的裝置，隨時分享或保存。</p></article>
+      </section>
+    </main>
+    <footer>建議使用 HTTPS 開啟，讓瀏覽器安全存取鏡頭。</footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    (() => {
+      const video = document.getElementById('video');
+      const toggle = document.getElementById('cameraToggle');
+      const select = document.getElementById('cameraSelect');
+      const captureButton = document.getElementById('captureButton');
+      const placeholder = document.getElementById('placeholder');
+      const placeholderTitle = document.getElementById('placeholderTitle');
+      const placeholderHint = document.getElementById('placeholderHint');
+      const status = document.getElementById('status');
+      const statusText = document.getElementById('statusText');
+      const liveBadge = document.getElementById('liveBadge');
+      const toast = document.getElementById('toast');
+      let stream = null;
+      let toastTimer = 0;
+
+      function showMessage(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
+      }
+
+      function stopCamera() {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        video.srcObject = null;
+        video.style.display = 'none';
+        placeholder.style.display = 'flex';
+        liveBadge.style.display = 'none';
+        status.classList.remove('active');
+        statusText.textContent = '鏡頭目前關閉';
+        captureButton.disabled = true;
+        select.disabled = true;
+      }
+
+      async function listCameras(activeDeviceId) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+        select.replaceChildren();
+        cameras.forEach((camera, index) => {
+          const option = document.createElement('option');
+          option.value = camera.deviceId;
+          option.textContent = camera.label || `鏡頭 ${index + 1}`;
+          select.append(option);
+        });
+        if (activeDeviceId) select.value = activeDeviceId;
+        select.disabled = cameras.length < 2;
+      }
+
+      async function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          toggle.checked = false;
+          showMessage('此瀏覽器無法存取鏡頭，請使用最新版瀏覽器並透過 HTTPS 開啟。');
+          return;
+        }
+        statusText.textContent = '正在連接鏡頭…';
+        try {
+          const deviceId = select.value;
+          const constraints = { audio: false, video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' } };
+          const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (!toggle.checked) {
+            newStream.getTracks().forEach(track => track.stop());
+            return;
+          }
+          if (stream) stream.getTracks().forEach(track => track.stop());
+          stream = newStream;
+          video.srcObject = stream;
+          await video.play();
+          video.style.display = 'block';
+          placeholder.style.display = 'none';
+          liveBadge.style.display = 'inline-flex';
+          status.classList.add('active');
+          statusText.textContent = '鏡頭已開啟';
+          captureButton.disabled = false;
+          await listCameras(stream.getVideoTracks()[0].getSettings().deviceId);
+        } catch (error) {
+          toggle.checked = false;
+          stopCamera();
+          if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            placeholderTitle.textContent = '需要鏡頭使用權限';
+            placeholderHint.textContent = '請在瀏覽器設定中允許存取鏡頭，再重新開啟';
+            showMessage('尚未取得鏡頭權限，請允許此網站使用鏡頭。');
+          } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            placeholderTitle.textContent = '找不到可用的鏡頭';
+            placeholderHint.textContent = '請確認裝置已連接鏡頭，再試一次';
+            showMessage('找不到可用的鏡頭裝置。');
+          } else {
+            placeholderTitle.textContent = '鏡頭暫時無法啟動';
+            placeholderHint.textContent = '請確認鏡頭未被其他應用程式占用';
+            showMessage('無法啟動鏡頭，請稍後再試。');
+          }
+        }
+      }
+
+      toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+          placeholderTitle.textContent = '正在準備鏡頭…';
+          placeholderHint.textContent = '請在瀏覽器提示中允許使用鏡頭';
+          startCamera();
+        } else {
+          stopCamera();
+          placeholderTitle.textContent = '準備好拍下這一刻了嗎？';
+          placeholderHint.textContent = '開啟右側鏡頭開關，開始預覽';
+        }
+      });
+
+      select.addEventListener('change', () => {
+        if (toggle.checked) startCamera();
+      });
+
+      captureButton.addEventListener('click', () => {
+        if (!stream || !video.videoWidth || !video.videoHeight) {
+          showMessage('鏡頭畫面尚未準備完成，請稍候再拍。');
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          showMessage('無法處理照片，請重新載入頁面再試。');
+          return;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (!blob) {
+            showMessage('照片產生失敗，請再試一次。');
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `鏡頭照片-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+          link.click();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showMessage('照片已拍攝，正在下載 PNG 檔案。');
+        }, 'image/png');
+      });
+
+      window.addEventListener('pagehide', stopCamera);
+    })();
+  </script>
+</body>
+</html>
